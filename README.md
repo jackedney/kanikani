@@ -1,5 +1,5 @@
 <p align="center">
-  <img height="100" src="https://github.com/jackedney/kanikani/blob/main/assets/kanikani_logo.png" alt="kkLogo">
+  <img height="100" src="https://github.com/jackedney/kanikani/blob/main/assets/kanikani_logo.svg" alt="kkLogo">
 </p>
 
 <p align="center">
