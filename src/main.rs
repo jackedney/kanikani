@@ -8,9 +8,10 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Margin;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
 use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Paragraph};
+use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Terminal;
 use std::fs;
+use terminal_size::{terminal_size, Height, Width};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
 
@@ -42,12 +43,30 @@ mod ui {
     }
 
     pub fn create_logo_widget<'a>() -> Paragraph<'a> {
-        let logo_art = fs::read_to_string(LOGO_ART_PATH).expect("Failed to read wanilogo.txt file");
-        let name_art = fs::read_to_string(NAME_ART_PATH).expect("Failed to read waniname.txt file");
-        let full_art = format!("{}{}", logo_art, name_art);
-        Paragraph::new(full_art)
-            .block(Block::default())
-            .alignment(Alignment::Center)
+        if let Some((Width(w), Height(_))) = terminal_size() {
+            let logo_art =
+                fs::read_to_string(LOGO_ART_PATH).expect("Failed to read wanilogo.txt file");
+            let name_art =
+                fs::read_to_string(NAME_ART_PATH).expect("Failed to read waniname.txt file");
+            let full_art = format!("{}{}", logo_art, name_art);
+            let lines: Vec<&str> = full_art.split('\n').collect();
+
+            // Create a new string to store the padded ASCII art
+            let mut padded_ascii_art = String::new();
+
+            // Add padding to each line of the ASCII art
+            for line in lines {
+                let padded_line = format!("{:^width$}\n", line, width = w as usize);
+                padded_ascii_art.push_str(&padded_line);
+            }
+            Paragraph::new(padded_ascii_art)
+                .block(Block::default())
+                .alignment(Alignment::Center)
+        } else {
+            Paragraph::new("Failed to get terminal size")
+                .block(Block::default())
+                .alignment(Alignment::Center)
+        }
     }
 
     pub fn render_ui(
@@ -59,8 +78,8 @@ mod ui {
         input: &Input,
     ) -> Result<(), Box<dyn std::error::Error>> {
         terminal.draw(|f| {
-            let welcome_widget =
-                Paragraph::new(welcome_msg).block(Block::default().title("kanikani"));
+            let welcome_widget = Paragraph::new(welcome_msg)
+                .block(Block::default().title("kanikani").borders(Borders::ALL));
             f.render_widget(logo_widget.clone(), chunks[0]);
             f.render_widget(welcome_widget, chunks[1]);
 
@@ -77,6 +96,16 @@ mod ui {
                 input_area.x + input.visual_cursor() as u16 + 1,
                 input_area.y + 1,
             );
+
+            // Render the "(q) to quit" message at the bottom
+            let quit_message = Paragraph::new("(q) to quit")
+                .style(Style::default().fg(Color::Red))
+                .alignment(Alignment::Right);
+            let quit_area = chunks[1].inner(&Margin {
+                vertical: 1,
+                horizontal: 1,
+            });
+            f.render_widget(quit_message, quit_area);
         })?;
         Ok(())
     }
@@ -111,7 +140,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     match key.code {
                         crossterm::event::KeyCode::Enter => {
                             let api_token = input.value().to_string();
-                            save_config(&Config { api_token: api_token.clone() });
+                            save_config(&Config {
+                                api_token: api_token.clone(),
+                            });
                             break api_token;
                         }
                         _ => {
@@ -147,8 +178,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Ok(());
         }
     }
+    loop {
+        let mut quit = false;
 
-    // ... (rest of the code)
+        match create_client().await {
+            Ok(_client) => {
+                ui::render_ui(
+                    &mut terminal,
+                    &chunks,
+                    logo_widget.clone(),
+                    "",
+                    "",
+                    &Input::default(),
+                )?;
+            }
+            Err(_e) => {
+                ui::render_ui(
+                    &mut terminal,
+                    &chunks,
+                    logo_widget.clone(),
+                    "",
+                    "",
+                    &Input::default(),
+                )?;
+            }
+        }
+
+        if let crossterm::event::Event::Key(key) = crossterm::event::read()? {
+            if let crossterm::event::KeyCode::Char('q') = key.code {
+                quit = true;
+            }
+        }
+
+        if quit {
+            break;
+        }
+    }
 
     Ok(())
 }
