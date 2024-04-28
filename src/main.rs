@@ -2,27 +2,90 @@ mod config;
 mod term;
 mod tui;
 mod wanikani;
-
 use crate::config::{load_config, save_config, Config};
 use crate::wanikani::api::WaniKaniClient;
-use serde_json::to_string_pretty;
+
+const KANILOGO_PATH: &str = "src/art/kanilogo.txt";
+const KANINAME_PATH: &str = "src/art/kaniname.txt";
+
+mod menu {
+    pub type MenuAction = fn(&str) -> ();
+
+    fn placeholder_action(output_method: &str) {
+        println!("{}", output_method);
+    }
+
+    pub const INTRO_MENU: &[(&char, &str, MenuAction)] = &[
+        (&'0', "Reviews", placeholder_action),
+        (&'1', "Lessons", placeholder_action),
+        (&'2', "Stats", placeholder_action),
+        (&'3', "Dictionary", placeholder_action),
+        (&'4', "Settings", placeholder_action),
+        (&'5', "Logout", placeholder_action),
+        (&'q', "Quit", placeholder_action),
+    ];
+}
 
 mod display {
+    use crate::menu;
     use crate::term;
     use crate::tui;
+    use std::cmp;
+
+    use terminal_size::terminal_size;
+
+    fn center_ascii_art(ascii: &str) -> String {
+        let mut result = String::new();
+
+        let term_width = match terminal_size() {
+            Some((w, _)) => w.0 as usize,
+            None => 80, // Provide a default width if terminal size is not available
+        };
+
+        let max_line_width = ascii
+            .lines()
+            .map(|line| line.trim().len())
+            .max()
+            .unwrap_or(0);
+
+        let left_padding = (term_width - cmp::min(term_width, max_line_width)) / 2;
+
+        for line in ascii.lines() {
+            result.push_str(&" ".repeat(left_padding));
+            result.push_str(line.trim());
+            result.push('\n');
+        }
+        result
+    }
+
+    fn create_start_screen_ascii() -> String {
+        let mut logo_ascii = std::fs::read_to_string(super::KANILOGO_PATH).unwrap();
+        let mut name_ascii = std::fs::read_to_string(super::KANINAME_PATH).unwrap();
+
+        logo_ascii = center_ascii_art(&logo_ascii);
+        name_ascii = center_ascii_art(&name_ascii);
+
+        format!("{}\n{}", logo_ascii, name_ascii)
+    }
 
     pub fn display_start_screen(output_method: &str) {
+        let ascii_intro = create_start_screen_ascii();
         match output_method {
-            "term" => term::display_start_screen(),
-            "tui" => tui::display_start_screen(),
+            "term" => term::display_start_screen(&ascii_intro),
+            "tui" => tui::display_start_screen(&ascii_intro),
             _ => panic!("Invalid output method"),
         }
     }
 
-    pub fn display_menu(output_method: &str, choices: &[&str]) -> usize {
+    pub fn display_menu(output_method: &str, choices: &[(&char, &str, menu::MenuAction)]) -> char {
+        let choices_: &[(&char, &str)] = &choices[..]
+            .iter()
+            .map(|(key, option, _)| (*key, *option))
+            .collect::<Vec<_>>();
+
         match output_method {
-            "term" => term::display_menu(choices),
-            "tui" => tui::display_menu(choices),
+            "term" => term::display_menu(choices_),
+            "tui" => tui::display_menu(choices_),
             _ => panic!("Invalid output method"),
         }
     }
@@ -76,88 +139,18 @@ async fn main() {
         display::display_text(output_method, "Authentication successful!");
     }
 
-    let user_info = client.fetch_user_info().await;
-
-    if let Err(e) = user_info {
-        display::display_text(
-            output_method,
-            &String::from(format!("Failed to get user information: {}", e)),
-        );
-        return;
-    } else if let Ok(user_info) = user_info {
-        display::display_text(output_method, &to_string_pretty(&user_info).unwrap());
-    }
-}
-
-#[allow(dead_code)]
-#[tokio::main]
-async fn main2() {
-    // Determine the output method (term or tui)
-    let output_method = "term"; // or "term"
-
-    display::display_start_screen(output_method);
-
-    // Load the configuration or prompt for the API token
-    let api_token = match load_config() {
-        Some(config) => config.api_token,
-        None => {
-            let input_msg = "Please enter your WaniKani API token:";
-            let api_token = display::text_input(output_method, input_msg);
-            save_config(&Config {
-                api_token: api_token.clone(),
-            });
-            api_token
-        }
-    };
-
-    // Create the WaniKani client
-    let client = WaniKaniClient::new(api_token);
-
-    // Authenticate the user
-    if let Err(e) = client.authenticate().await {
-        eprintln!("Authentication failed: {}", e);
-        return;
-    }
-
-    // Main loop
     loop {
-        let display_menu = [
-            "Reviews",
-            "Lessons",
-            "Stats",
-            "Dictionary",
-            "Settings",
-            "Logout",
-            "Quit",
-        ];
-        // Display the main menu and get user input
+        let display_menu: &[(&char, &str, menu::MenuAction)] = menu::INTRO_MENU;
+
         let user_choice = display::display_menu(output_method, &display_menu);
 
-        match user_choice {
-            1 => {
-                display::display_text(output_method, "Reviews");
-            }
-            2 => {
-                display::display_text(output_method, "Lessons");
-            }
-            3 => {
-                display::display_text(output_method, "Stats");
-            }
-            4 => {
-                display::display_text(output_method, "Dictionary");
-            }
-            5 => {
-                display::display_text(output_method, "Settings");
-            }
-            6 => {
-                println!("Logging out...");
+        if let Some((_, _, action)) = display_menu.iter().find(|(key, _, _)| *key == &user_choice) {
+            action(output_method);
+            if user_choice == '5' || user_choice == 'q' {
                 break;
             }
-            7 => {
-                println!("Quitting...");
-                break;
-            }
-            _ => println!("Invalid choice. Please try again."),
+        } else {
+            println!("Invalid choice. Please try again.");
         }
     }
 }

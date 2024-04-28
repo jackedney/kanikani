@@ -19,3 +19,4 @@ serde_json = "1.0.116"
 anyhow = "1.0.82"
 chrono = { version = "0.4.38", features = ["serde"] }
 serde_with = "3.8.0"
+clearscreen = "3.0.0"

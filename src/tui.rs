@@ -10,14 +10,12 @@ use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 use ratatui::Terminal;
 use std::io;
 
-pub fn display_start_screen() {
+pub fn display_start_screen(ascii_intro: &str) {
     let mut terminal = setup_terminal().expect("Failed to setup terminal");
     execute!(terminal.backend_mut(), Clear(ClearType::All)).unwrap();
     terminal
         .draw(|f| {
-            let block = Block::default()
-                .title("Welcome to KaniKani!")
-                .borders(Borders::ALL);
+            let block = Block::default().title(ascii_intro).borders(Borders::ALL);
             f.render_widget(block, f.size());
         })
         .expect("Failed to draw start screen");
@@ -62,7 +60,7 @@ pub fn text_input(prompt: &str) -> String {
     input
 }
 
-pub fn display_menu(options: &[&str]) -> usize {
+pub fn display_menu(options: &[(&char, &str)]) -> char {
     let mut terminal = setup_terminal().expect("Failed to setup terminal");
     let mut selected_index = 0;
     let mut list_state = ListState::default();
@@ -73,7 +71,7 @@ pub fn display_menu(options: &[&str]) -> usize {
             .draw(|f| {
                 let items: Vec<ListItem> = options
                     .iter()
-                    .map(|&option| ListItem::new(option))
+                    .map(|(k, v)| ListItem::new(format!("{}. {}", k, v)))
                     .collect();
                 let list = List::new(items)
                     .block(Block::default().title("Main Menu").borders(Borders::ALL))
@@ -90,7 +88,10 @@ pub fn display_menu(options: &[&str]) -> usize {
 
         if let Event::Key(key) = event::read().expect("Failed to read event") {
             match key.code {
-                KeyCode::Enter => break,
+                KeyCode::Enter => {
+                    let selected_choice = options[selected_index].0;
+                    return *selected_choice;
+                }
                 KeyCode::Up => {
                     if selected_index > 0 {
                         selected_index -= 1;
@@ -107,8 +108,6 @@ pub fn display_menu(options: &[&str]) -> usize {
             }
         }
     }
-    terminal.clear().expect("Failed to clear terminal");
-    selected_index + 1
 }
 
 pub fn display_text(text: &str) {

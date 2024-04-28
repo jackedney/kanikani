@@ -1,6 +1,18 @@
 use std::io::{self, Write};
 
-pub fn display_start_screen() {
+fn clear_lines(num_lines: u16) {
+    print!("\x1B[{}A", num_lines); // Move the cursor up by num_lines
+    for _ in 0..num_lines {
+        print!("\r\x1B[K"); // Move the cursor to the beginning of the line and clear it
+        println!();
+    }
+    print!("\x1B[{}A", num_lines); // Move the cursor back up to the original position
+    io::stdout().flush().unwrap();
+}
+
+pub fn display_start_screen(ascii_intro: &str) {
+    println!("{}", ascii_intro);
+    println!("---------------------");
     println!("Welcome to KaniKani!");
     println!("---------------------");
 }
@@ -15,17 +27,21 @@ pub fn text_input(prompt: &str) -> String {
     input.trim().to_string()
 }
 
-pub fn display_menu(options: &[&str]) -> usize {
+pub fn display_menu(options: &[(&char, &str)]) -> char {
     println!("\nMain Menu:");
-    for (index, option) in options.iter().enumerate() {
-        println!("{}. {}", index + 1, option);
+
+    for (key, option) in options {
+        println!("{}. {}", key, option);
     }
     println!("\nEnter your choice:");
 
     loop {
         let input = text_input("");
-        match input.parse::<usize>() {
-            Ok(choice) if choice > 0 && choice <= options.len() => return choice,
+        match input.parse::<char>() {
+            Ok(choice) if options.iter().any(|(k, _)| k == &&choice) => {
+                clear_lines((options.len() + 4) as u16);
+                return choice;
+            }
             _ => println!("Invalid choice. Please try again."),
         }
     }
