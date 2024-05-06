@@ -2,6 +2,7 @@ mod config;
 mod term;
 mod tui;
 mod wanikani;
+
 use crate::config::{load_config, save_config, Config};
 use crate::wanikani::api::WaniKaniClient;
 
@@ -137,6 +138,17 @@ async fn main() {
         return;
     } else {
         display::display_text(output_method, "Authentication successful!");
+    }
+
+    if let Err(e) = client.fetch_assignments().await {
+        display::display_text(
+            output_method,
+            &String::from(format!("Assignment fetching failed: {}", e)),
+        );
+        return;
+    } else if let Ok(assignments) = client.fetch_assignments().await {
+        display::display_text(output_method, "Fetch Assignments successful!");
+        println!("{:#?}", assignments);
     }
 
     loop {

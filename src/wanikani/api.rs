@@ -1,3 +1,4 @@
+use crate::wanikani::assignment::AssignmentCollection;
 use crate::wanikani::user::User;
 use anyhow::{anyhow, Result};
 use reqwest::header::{HeaderMap, AUTHORIZATION};
@@ -54,6 +55,27 @@ impl WaniKaniClient {
 
         let user_info: User = serde_json::from_str(&response_body)?;
         Ok(user_info)
+    }
+
+    pub async fn fetch_assignments(&self) -> Result<AssignmentCollection> {
+        let url = format!("{}/assignments", BASE_URL);
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            AUTHORIZATION,
+            format!("Bearer {}", self.api_token).parse().unwrap(),
+        );
+
+        let response_body = self
+            .client
+            .get(&url)
+            .headers(headers)
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        let assignments: AssignmentCollection = serde_json::from_str(&response_body)?;
+        Ok(assignments)
     }
 
     // Add more methods for fetching reviews, lessons, etc.
