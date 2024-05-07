@@ -5,14 +5,16 @@ mod wanikani;
 
 use crate::config::{load_config, save_config, Config};
 use crate::wanikani::api::WaniKaniClient;
+use serde_json::to_string_pretty;
 
 const KANILOGO_PATH: &str = "src/art/kanilogo.txt";
 const KANINAME_PATH: &str = "src/art/kaniname.txt";
 
 mod menu {
-    pub type MenuAction = fn(&str) -> ();
+    use crate::WaniKaniClient;
+    pub type MenuAction = fn(&str, &WaniKaniClient) -> ();
 
-    fn placeholder_action(output_method: &str) {
+    fn placeholder_action(output_method: &str, _client: &WaniKaniClient) {
         println!("{}", output_method);
     }
 
@@ -148,7 +150,13 @@ async fn main() {
         return;
     } else if let Ok(assignments) = client.fetch_assignments().await {
         display::display_text(output_method, "Fetch Assignments successful!");
-        println!("{:#?}", assignments);
+        let assignment = &assignments.data[0];
+        let subject = client
+            .fetch_subject(assignment.data.subject_id)
+            .await
+            .unwrap();
+        let subject_string = to_string_pretty(&subject).unwrap();
+        display::display_text("subject", &format!("{:?}", subject_string));
     }
 
     loop {
@@ -157,7 +165,7 @@ async fn main() {
         let user_choice = display::display_menu(output_method, &display_menu);
 
         if let Some((_, _, action)) = display_menu.iter().find(|(key, _, _)| *key == &user_choice) {
-            action(output_method);
+            action(output_method, &client);
             if user_choice == '5' || user_choice == 'q' {
                 break;
             }
