@@ -16,7 +16,9 @@
 
 ## Japanese input
 
-- [ ] Display kanji on screen
+- [x] Display kanji on screen
+- [x] Port okanimoji to kanikani
+- [ ] Create okanimoji for reviews
 - [ ] Input romaji and compare it to saved romaji
 - [ ] Input romaji and convert to hiragana in real-time
 - [ ] Input english and compare to list of answers
@@ -26,3 +28,7 @@
 ## TUI
 
 Wait till all functionality is complete then revisit TUI
+
+
+## Stuck
+- [ ] Sort out how to manage fonts and interoperability with the okanimoji
