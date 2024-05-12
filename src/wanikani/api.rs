@@ -96,7 +96,8 @@ impl WaniKaniClient {
             .text()
             .await?;
 
-        println!("{}", response_body);
+        let debug_json: serde_json::Value = serde_json::from_str(&response_body)?;
+        println!("{}", serde_json::to_string_pretty(&debug_json).unwrap());
 
         let subject: Subject = serde_json::from_str(&response_body)?;
         Ok(subject)

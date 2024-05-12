@@ -5,7 +5,9 @@ mod wanikani;
 
 use crate::config::{load_config, save_config, Config};
 use crate::wanikani::api::WaniKaniClient;
-use serde_json::to_string_pretty;
+use crate::wanikani::subject::SubjectData;
+
+use okanimoji::generate_ascii_text;
 
 const KANILOGO_PATH: &str = "src/art/kanilogo.txt";
 const KANINAME_PATH: &str = "src/art/kaniname.txt";
@@ -155,8 +157,29 @@ async fn main() {
             .fetch_subject(assignment.data.subject_id)
             .await
             .unwrap();
-        let subject_string = to_string_pretty(&subject).unwrap();
-        display::display_text("subject", &format!("{:?}", subject_string));
+
+        let mut characters_: Option<String> = None;
+
+        match subject.data {
+            SubjectData::Radical(ref data) => {
+                characters_ = Some(data.characters.clone());
+            }
+            SubjectData::Kanji(ref data) => {
+                characters_ = Some(data.characters.clone());
+            }
+            SubjectData::Vocabulary(ref data) => {
+                characters_ = Some(data.characters.clone());
+            }
+            SubjectData::KanaVocabulary(ref data) => {
+                characters_ = Some(data.characters.clone());
+            }
+        }
+
+        let ascii_character = generate_ascii_text(&characters_.unwrap(), "togoshi-gothic", 120, 2);
+        match ascii_character {
+            Ok(ascii_character) => display::display_text(output_method, &ascii_character),
+            Err(e) => display::display_text(output_method, &format!("Error: {}", e)),
+        }
     }
 
     loop {

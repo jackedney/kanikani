@@ -1,75 +1,133 @@
-use crate::wanikani::decode::from_rfc3339;
+use crate::wanikani::decode::{from_rfc3339, from_rfc3339_option};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Subject {
     pub id: u64,
-    pub object: String,
     pub url: String,
     #[serde(deserialize_with = "from_rfc3339")]
     pub data_updated_at: DateTime<Utc>,
+    #[serde(flatten)]
     pub data: SubjectData,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "object", content = "data")]
+#[serde(tag = "object", rename_all = "lowercase", content = "data")]
 pub enum SubjectData {
-    #[serde(rename = "radical")]
     Radical(RadicalData),
-    #[serde(rename = "kanji")]
     Kanji(KanjiData),
-    #[serde(rename = "vocabulary")]
     Vocabulary(VocabularyData),
-    #[serde(rename = "kana_vocabulary")]
     KanaVocabulary(KanaVocabularyData),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RadicalData {
-    pub level: u8,
-    pub slug: String,
+    pub amalgamation_subject_ids: Vec<u64>,
+    pub auxiliary_meanings: Vec<Meaning>,
+    pub characters: String,
+    pub character_images: Vec<CharacterImage>,
     #[serde(deserialize_with = "from_rfc3339")]
     pub created_at: DateTime<Utc>,
-    pub characters: Option<String>,
-    pub character_images: Vec<CharacterImage>,
-    // Add other fields as needed
+    pub document_url: String,
+    #[serde(deserialize_with = "from_rfc3339_option")]
+    pub hidden_at: Option<DateTime<Utc>>,
+    pub lesson_position: u8,
+    pub level: u8,
+    pub meanings: Vec<Meaning>,
+    pub meaning_mnemonic: String,
+    pub slug: String,
+    pub spaced_repetition_system_id: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KanjiData {
-    pub level: u8,
-    pub slug: String,
+    pub amalgamation_subject_ids: Vec<u64>,
+    pub auxiliary_meanings: Vec<Meaning>,
+    pub characters: String,
+    pub component_subject_ids: Vec<u64>,
     #[serde(deserialize_with = "from_rfc3339")]
     pub created_at: DateTime<Utc>,
-    pub characters: String,
+    pub document_url: String,
+    #[serde(deserialize_with = "from_rfc3339_option")]
+    pub hidden_at: Option<DateTime<Utc>>,
+    pub lesson_position: u8,
+    pub level: u8,
     pub meanings: Vec<Meaning>,
+    pub meaning_hint: Option<String>,
+    pub meaning_mnemonic: String,
     pub readings: Vec<Reading>,
-    // Add other fields as needed
+    pub reading_mnemonic: String,
+    pub reading_hint: Option<String>,
+    pub slug: String,
+    pub visually_similar_subject_ids: Vec<u64>,
+    pub spaced_repetition_system_id: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VocabularyData {
-    pub level: u8,
-    pub slug: String,
+    pub auxiliary_meanings: Vec<Meaning>,
+    pub characters: String,
+    pub component_subject_ids: Vec<u64>,
+    pub context_sentences: Vec<ContextSentence>,
     #[serde(deserialize_with = "from_rfc3339")]
     pub created_at: DateTime<Utc>,
-    pub characters: String,
+    pub document_url: String,
+    #[serde(deserialize_with = "from_rfc3339_option")]
+    pub hidden_at: Option<DateTime<Utc>>,
+    pub lesson_position: u8,
+    pub level: u8,
     pub meanings: Vec<Meaning>,
+    pub meaning_mnemonic: String,
+    pub parts_of_speech: Vec<String>,
+    pub pronunciation_audios: Vec<PronunciationAudio>,
     pub readings: Vec<Reading>,
-    // Add other fields as needed
+    pub reading_mnemonic: String,
+    pub slug: String,
+    pub spaced_repetition_system_id: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KanaVocabularyData {
-    pub level: u8,
-    pub slug: String,
     #[serde(deserialize_with = "from_rfc3339")]
     pub created_at: DateTime<Utc>,
+    pub level: u8,
+    pub slug: String,
+    #[serde(deserialize_with = "from_rfc3339_option")]
+    pub hidden_at: Option<DateTime<Utc>>,
+    pub document_url: String,
     pub characters: String,
     pub meanings: Vec<Meaning>,
+    pub auxiliary_meanings: Vec<Meaning>,
     pub parts_of_speech: Vec<String>,
-    // Add other fields as needed
+    pub meanings_mnemonic: String,
+    pub context_sentences: Vec<ContextSentence>,
+    pub pronunciation_audios: Vec<PronunciationAudio>,
+    pub lesson_position: u8,
+    pub spaced_repetition_system_id: u8,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ContextSentence {
+    pub en: String,
+    pub ja: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PronunciationAudio {
+    pub url: String,
+    pub metadata: PronunciationAudioMetadata,
+    pub content_type: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PronunciationAudioMetadata {
+    gender: String,
+    source_id: u64,
+    pronunciation: String,
+    voice_actor_id: u64,
+    voice_actor_name: String,
+    voice_description: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -90,7 +148,6 @@ pub struct CharacterImageMetadata {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Meaning {
     pub meaning: String,
-
     pub primary: bool,
     pub accepted_answer: bool,
 }

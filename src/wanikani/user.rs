@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct User {
-    pub object: String,
+    pub object: Option<String>,
     pub url: String,
     #[serde(deserialize_with = "from_rfc3339")]
     pub data_updated_at: DateTime<Utc>,
