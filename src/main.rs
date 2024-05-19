@@ -158,28 +158,27 @@ async fn main() {
             .await
             .unwrap();
 
-        let mut characters_: Option<String> = None;
+        let characters_: &str;
 
         match subject.data {
             SubjectData::Radical(ref data) => {
-                characters_ = Some(data.characters.clone());
+                characters_ = &data.characters;
             }
             SubjectData::Kanji(ref data) => {
-                characters_ = Some(data.characters.clone());
+                characters_ = &data.characters;
             }
             SubjectData::Vocabulary(ref data) => {
-                characters_ = Some(data.characters.clone());
+                characters_ = &data.characters;
             }
             SubjectData::KanaVocabulary(ref data) => {
-                characters_ = Some(data.characters.clone());
+                characters_ = &data.characters;
             }
         }
-
-        let ascii_character = generate_ascii_text(&characters_.unwrap(), "togoshi-gothic", 120, 2);
-        match ascii_character {
-            Ok(ascii_character) => display::display_text(output_method, &ascii_character),
-            Err(e) => display::display_text(output_method, &format!("Error: {}", e)),
-        }
+        println!("{}", characters_);
+        println!(
+            "{}",
+            generate_ascii_text(characters_, "togoshi-gothic", 120, 2)
+        );
     }
 
     loop {

@@ -31,4 +31,4 @@ Wait till all functionality is complete then revisit TUI
 
 
 ## Stuck
-- [ ] Sort out how to manage fonts and interoperability with the okanimoji
+- [x] Sort out how to manage fonts and interoperability with the okanimoji
