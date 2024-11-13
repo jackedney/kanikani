@@ -5,9 +5,6 @@ mod wanikani;
 
 use crate::config::{load_config, save_config, Config};
 use crate::wanikani::api::WaniKaniClient;
-use crate::wanikani::subject::SubjectData;
-
-use okanimoji::generate_ascii_text;
 
 const KANILOGO_PATH: &str = "src/art/kanilogo.txt";
 const KANINAME_PATH: &str = "src/art/kaniname.txt";
@@ -15,14 +12,65 @@ const KANINAME_PATH: &str = "src/art/kaniname.txt";
 mod menu {
     use crate::WaniKaniClient;
     pub type MenuAction = fn(&str, &WaniKaniClient) -> ();
+    use crate::display;
+    use crate::wanikani::lessons;
+    use crate::wanikani::reviews;
 
     fn placeholder_action(output_method: &str, _client: &WaniKaniClient) {
         println!("{}", output_method);
     }
 
     pub const INTRO_MENU: &[(&char, &str, MenuAction)] = &[
-        (&'0', "Reviews", placeholder_action),
-        (&'1', "Lessons", placeholder_action),
+        (&'0', "Reviews", |output_method, client| {
+            let client_clone = client.clone();
+            let summary = client.fetch_summary().unwrap();
+            let available_reviews = summary.get_available_reviews();
+
+            if available_reviews.is_empty() {
+                display::display_text(output_method, "No reviews available at this time.");
+                return;
+            }
+
+            let assignments = client.fetch_available_assignments(true).unwrap();
+            let review_items: Vec<(u64, u64)> = assignments
+                .data
+                .iter()
+                .map(|a| (a.id, a.data.subject_id))
+                .collect();
+
+            let mut session =
+                reviews::ReviewSession::new(client_clone, review_items, output_method.to_string());
+
+            if let Err(e) = session.start() {
+                display::display_text(
+                    output_method,
+                    &format!("Error during review session: {}", e),
+                );
+            }
+        }),
+        (&'1', "Lessons", |output_method, client| {
+            let client_clone = client.clone();
+            let summary = client.fetch_summary().unwrap();
+            let available_lessons = summary.get_available_lessons();
+
+            if available_lessons.is_empty() {
+                display::display_text(output_method, "No lessons available at this time.");
+                return;
+            }
+
+            let mut session = lessons::LessonSession::new(
+                client_clone,
+                available_lessons,
+                output_method.to_string(),
+            );
+
+            if let Err(e) = session.start() {
+                display::display_text(
+                    output_method,
+                    &format!("Error during lesson session: {}", e),
+                );
+            }
+        }),
         (&'2', "Stats", placeholder_action),
         (&'3', "Dictionary", placeholder_action),
         (&'4', "Settings", placeholder_action),
@@ -112,8 +160,7 @@ mod display {
     }
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let output_method = "term";
     display::display_start_screen(output_method);
 
@@ -134,7 +181,7 @@ async fn main() {
     let client = WaniKaniClient::new(api_token);
 
     // Authenticate the user
-    if let Err(e) = client.authenticate().await {
+    if let Err(e) = client.authenticate() {
         display::display_text(
             output_method,
             &String::from(format!("Authentication failed: {}", e)),
@@ -144,48 +191,10 @@ async fn main() {
         display::display_text(output_method, "Authentication successful!");
     }
 
-    if let Err(e) = client.fetch_assignments().await {
-        display::display_text(
-            output_method,
-            &String::from(format!("Assignment fetching failed: {}", e)),
-        );
-        return;
-    } else if let Ok(assignments) = client.fetch_assignments().await {
-        display::display_text(output_method, "Fetch Assignments successful!");
-        let assignment = &assignments.data[0];
-        let subject = client
-            .fetch_subject(assignment.data.subject_id)
-            .await
-            .unwrap();
-
-        let characters_: &str;
-
-        match subject.data {
-            SubjectData::Radical(ref data) => {
-                characters_ = &data.characters;
-            }
-            SubjectData::Kanji(ref data) => {
-                characters_ = &data.characters;
-            }
-            SubjectData::Vocabulary(ref data) => {
-                characters_ = &data.characters;
-            }
-            SubjectData::KanaVocabulary(ref data) => {
-                characters_ = &data.characters;
-            }
-        }
-        println!("{}", characters_);
-        println!(
-            "{}",
-            generate_ascii_text(characters_, "togoshi-gothic", 120, 2)
-        );
-    }
-
     loop {
         let display_menu: &[(&char, &str, menu::MenuAction)] = menu::INTRO_MENU;
 
         let user_choice = display::display_menu(output_method, &display_menu);
-
         if let Some((_, _, action)) = display_menu.iter().find(|(key, _, _)| *key == &user_choice) {
             action(output_method, &client);
             if user_choice == '5' || user_choice == 'q' {

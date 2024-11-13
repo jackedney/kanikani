@@ -18,7 +18,7 @@ pub fn display_start_screen(ascii_intro: &str) {
 }
 
 pub fn text_input(prompt: &str) -> String {
-    print!("{}", prompt);
+    print!("{}\n", prompt);
     io::stdout().flush().expect("Failed to flush stdout");
     let mut input = String::new();
     io::stdin()

@@ -10,7 +10,7 @@ serde = { version = "1.0.198", features = ["derive"] }
 crossterm = "0.27.0"
 directories = "5.0.1"
 ratatui = "0.26.2"
-reqwest = { version = "0.12.4", features = ["json"] }
+reqwest = { version = "0.12.4", features = ["json", "blocking"] }
 toml = "0.8.12"
 tui-input = "0.8.0"
 terminal_size = "0.3.0"
@@ -22,3 +22,6 @@ serde_with = "3.8.0"
 clearscreen = "3.0.0"
 okanimoji = { git = "http://github.com/jackedney/okanimoji.git" }
 serde_path_to_error = "0.1.16"
+image = "0.24.9"
+resvg = "0.42.0"
+show-image = "0.14.0"

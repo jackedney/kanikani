@@ -1,24 +1,34 @@
 use crate::wanikani::assignment::AssignmentCollection;
-use crate::wanikani::subject::Subject;
+use crate::wanikani::subject::subject;
+use crate::wanikani::summary;
 use crate::wanikani::user::User;
 use anyhow::{anyhow, Result};
+use reqwest::blocking::Client as BlockingClient;
 use reqwest::header::{HeaderMap, AUTHORIZATION};
-use reqwest::Client;
 
 const BASE_URL: &str = "https://api.wanikani.com/v2";
 
 pub struct WaniKaniClient {
-    client: Client,
+    client: BlockingClient,
     api_token: String,
+}
+
+impl Clone for WaniKaniClient {
+    fn clone(&self) -> Self {
+        WaniKaniClient {
+            client: BlockingClient::new(),
+            api_token: self.api_token.clone(),
+        }
+    }
 }
 
 impl WaniKaniClient {
     pub fn new(api_token: String) -> Self {
-        let client = Client::new();
+        let client = BlockingClient::new();
         WaniKaniClient { client, api_token }
     }
 
-    pub async fn authenticate(&self) -> Result<()> {
+    pub fn authenticate(&self) -> Result<()> {
         let url = format!("{}/user", BASE_URL);
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -26,7 +36,7 @@ impl WaniKaniClient {
             format!("Bearer {}", self.api_token).parse().unwrap(),
         );
 
-        let response = self.client.get(&url).headers(headers).send().await?;
+        let response = self.client.get(&url).headers(headers).send()?;
 
         if response.status().is_success() {
             Ok(())
@@ -37,7 +47,8 @@ impl WaniKaniClient {
             ))
         }
     }
-    pub async fn fetch_user_info(&self) -> Result<User> {
+
+    pub fn fetch_user_info(&self) -> Result<User> {
         let url = format!("{}/user", BASE_URL);
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -45,20 +56,13 @@ impl WaniKaniClient {
             format!("Bearer {}", self.api_token).parse().unwrap(),
         );
 
-        let response_body = self
-            .client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await?
-            .text()
-            .await?;
+        let response_body = self.client.get(&url).headers(headers).send()?.text()?;
 
         let user_info: User = serde_json::from_str(&response_body)?;
         Ok(user_info)
     }
 
-    pub async fn fetch_assignments(&self) -> Result<AssignmentCollection> {
+    pub fn fetch_assignments(&self) -> Result<AssignmentCollection> {
         let url = format!("{}/assignments", BASE_URL);
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -66,20 +70,19 @@ impl WaniKaniClient {
             format!("Bearer {}", self.api_token).parse().unwrap(),
         );
 
-        let response_body = self
-            .client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await?
-            .text()
-            .await?;
+        let response_body = self.client.get(&url).headers(headers).send()?.text()?;
 
-        let assignments: AssignmentCollection = serde_json::from_str(&response_body)?;
-        Ok(assignments)
+        let assignments = serde_json::from_str(&response_body);
+        match assignments {
+            Err(e) => {
+                println!("Response body: {:#?}", &response_body);
+                return Err(e.into());
+            }
+            Ok(assignments) => Ok(assignments),
+        }
     }
 
-    pub async fn fetch_subject(&self, subject_id: u64) -> Result<Subject> {
+    pub fn fetch_subject(&self, subject_id: u64) -> Result<subject::Subject> {
         let url = format!("{}/subjects/{}", BASE_URL, subject_id);
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -87,20 +90,68 @@ impl WaniKaniClient {
             format!("Bearer {}", self.api_token).parse().unwrap(),
         );
 
-        let response_body = self
-            .client
-            .get(&url)
-            .headers(headers)
-            .send()
-            .await?
-            .text()
-            .await?;
+        let response_body = self.client.get(&url).headers(headers).send()?.text()?;
 
-        let debug_json: serde_json::Value = serde_json::from_str(&response_body)?;
-        println!("{}", serde_json::to_string_pretty(&debug_json).unwrap());
+        let subject = serde_json::from_str(&response_body);
+        match subject {
+            Err(e) => {
+                println!("Response body: {:#?}", &response_body);
+                return Err(e.into());
+            }
+            Ok(subject) => Ok(subject),
+        }
+    }
+    pub fn fetch_summary(&self) -> Result<summary::Summary> {
+        let url = format!("{}/summary", BASE_URL);
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            AUTHORIZATION,
+            format!("Bearer {}", self.api_token).parse().unwrap(),
+        );
 
-        let subject: Subject = serde_json::from_str(&response_body)?;
-        Ok(subject)
+        let response_body = self.client.get(&url).headers(headers).send()?.text()?;
+
+        let summary = serde_json::from_str(&response_body);
+        match summary {
+            Err(e) => {
+                println!("Response body: {:#?}", &response_body);
+                return Err(e.into());
+            }
+            Ok(summary) => Ok(summary),
+        }
+    }
+
+    pub fn fetch_available_assignments(
+        &self,
+        immediately_available: bool,
+    ) -> Result<AssignmentCollection> {
+        let mut url = format!("{}/assignments", BASE_URL);
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            AUTHORIZATION,
+            format!("Bearer {}", self.api_token).parse().unwrap(),
+        );
+
+        if immediately_available {
+            url.push_str("?immediately_available_for_review=true");
+        }
+
+        let response_body = self.client.get(&url).headers(headers).send()?.text()?;
+
+        let assignments = serde_json::from_str(&response_body);
+        match assignments {
+            Err(e) => {
+                println!("Response body: {:#?}", &response_body);
+                return Err(e.into());
+            }
+            Ok(assignments) => Ok(assignments),
+        }
+    }
+
+    pub fn submit_review(&self, review_data: serde_json::Value) -> Result<()> {
+        let url = format!("{}/reviews", BASE_URL);
+        self.client.post(&url).json(&review_data).send()?;
+        Ok(())
     }
 
     // Add more methods for fetching reviews, lessons, etc.
